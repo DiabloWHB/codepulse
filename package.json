@@ -1,0 +1,206 @@
+{
+  "name": "codepulse",
+  "displayName": "CodePulse",
+  "description": "Real-time code health monitoring with dependency tracking for AI-assisted development",
+  "version": "0.1.0",
+  "publisher": "codepulse",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "code health",
+    "dependency graph",
+    "impact analysis",
+    "ai",
+    "vibe coding",
+    "supabase",
+    "typescript"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/*.ts",
+    "workspaceContains:**/*.tsx",
+    "workspaceContains:**/*.js",
+    "workspaceContains:**/*.jsx"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "codepulse.analyzeFile",
+        "title": "CodePulse: Analyze Current File",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "codepulse.analyzeWorkspace",
+        "title": "CodePulse: Analyze Workspace",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "codepulse.showDashboard",
+        "title": "CodePulse: Show Dashboard",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "codepulse.showImpact",
+        "title": "CodePulse: Show Impact Analysis",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "codepulse.showDependencies",
+        "title": "CodePulse: Show Dependencies",
+        "icon": "$(references)"
+      },
+      {
+        "command": "codepulse.refresh",
+        "title": "CodePulse: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codepulse.showProjectReport",
+        "title": "CodePulse: Show Project Report",
+        "icon": "$(file-text)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codepulse",
+          "title": "CodePulse",
+          "icon": "resources/icons/codepulse.svg"
+        }
+      ]
+    },
+    "views": {
+      "codepulse": [
+        {
+          "id": "codepulse.quickAccessView",
+          "name": "Quick Actions"
+        },
+        {
+          "id": "codepulse.healthView",
+          "name": "Health Status"
+        },
+        {
+          "id": "codepulse.impactView",
+          "name": "Impact Analysis"
+        },
+        {
+          "id": "codepulse.detailsView",
+          "name": "Details",
+          "type": "webview"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "CodePulse",
+      "properties": {
+        "codepulse.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable CodePulse"
+        },
+        "codepulse.debounceDelay": {
+          "type": "number",
+          "default": 300,
+          "description": "Debounce delay for file changes (ms)"
+        },
+        "codepulse.supabase.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Supabase integration"
+        },
+        "codepulse.graph.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable dependency graph building"
+        },
+        "codepulse.graph.maxDepth": {
+          "type": "number",
+          "default": 5,
+          "description": "Maximum depth for impact analysis"
+        }
+      }
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "codepulse.analyzeFile",
+          "when": "view == codepulse.healthView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codepulse.analyzeWorkspace",
+          "when": "view == codepulse.healthView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "codepulse.refresh",
+          "when": "view == codepulse.healthView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "codepulse.showProjectReport",
+          "when": "view == codepulse.healthView",
+          "group": "navigation@4"
+        },
+        {
+          "command": "codepulse.showDashboard",
+          "when": "view == codepulse.impactView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codepulse.showImpact",
+          "when": "view == codepulse.impactView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "codepulse.showDependencies",
+          "when": "view == codepulse.impactView",
+          "group": "navigation@3"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js --production",
+    "watch": "node esbuild.js --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext ts",
+    "lint:fix": "eslint src --ext ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "dependencies": {
+    "dotenv": "16.3.1",
+    "glob": "10.3.10",
+    "minimatch": "9.0.3",
+    "tree-sitter": "0.21.1",
+    "tree-sitter-typescript": "0.23.2"
+  },
+  "devDependencies": {
+    "@types/minimatch": "5.1.2",
+    "@types/node": "18.19.0",
+    "@types/vscode": "1.85.0",
+    "@typescript-eslint/eslint-plugin": "6.18.0",
+    "@typescript-eslint/parser": "6.18.0",
+    "@vitest/coverage-v8": "1.2.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "2.22.0",
+    "electron-rebuild": "^3.2.9",
+    "esbuild": "0.19.11",
+    "eslint": "8.56.0",
+    "prettier": "3.2.0",
+    "typescript": "5.3.3",
+    "vitest": "1.2.0"
+  }
+}
