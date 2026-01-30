@@ -64,37 +64,46 @@ export class DetailsWebview {
    * Handle messages from the webview
    */
   private async handleMessage(message: any): Promise<void> {
-    switch (message.command) {
-      case 'goToCode':
-        if (this.currentFunction) {
-          const doc = await vscode.workspace.openTextDocument(this.currentFunction.file);
+    try {
+      switch (message.command) {
+        case 'goToCode':
+          if (this.currentFunction) {
+            const doc = await vscode.workspace.openTextDocument(this.currentFunction.file);
+            const editor = await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
+            const pos = new vscode.Position(this.currentFunction.location.startLine - 1, 0);
+            editor.selection = new vscode.Selection(pos, pos);
+            editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+          }
+          break;
+
+        case 'fixWithAI':
+          if (this.currentFunction) {
+            console.log('[CodePulse] Fix with AI clicked for:', this.currentFunction.name);
+            await vscode.commands.executeCommand('codepulse.fixWithAI', this.currentFunction);
+          } else {
+            console.error('[CodePulse] Fix with AI clicked but no currentFunction');
+            vscode.window.showWarningMessage('No function selected. Please select a function first.');
+          }
+          break;
+
+        case 'ignoreIssues':
+          if (this.currentFunction) {
+            await vscode.commands.executeCommand('codepulse.ignoreIssue', this.currentFunction);
+          }
+          break;
+
+        case 'goToFunction':
+          const { file, line } = message.data;
+          const doc = await vscode.workspace.openTextDocument(file);
           const editor = await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
-          const pos = new vscode.Position(this.currentFunction.location.startLine - 1, 0);
+          const pos = new vscode.Position(line - 1, 0);
           editor.selection = new vscode.Selection(pos, pos);
           editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-        }
-        break;
-
-      case 'fixWithAI':
-        if (this.currentFunction) {
-          await vscode.commands.executeCommand('codepulse.fixWithAI', this.currentFunction);
-        }
-        break;
-
-      case 'ignoreIssues':
-        if (this.currentFunction) {
-          await vscode.commands.executeCommand('codepulse.ignoreIssue', this.currentFunction);
-        }
-        break;
-
-      case 'goToFunction':
-        const { file, line } = message.data;
-        const doc = await vscode.workspace.openTextDocument(file);
-        const editor = await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
-        const pos = new vscode.Position(line - 1, 0);
-        editor.selection = new vscode.Selection(pos, pos);
-        editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-        break;
+          break;
+      }
+    } catch (error) {
+      console.error('[CodePulse] Error handling message:', error);
+      vscode.window.showErrorMessage(`CodePulse: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

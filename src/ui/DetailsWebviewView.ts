@@ -74,37 +74,46 @@ export class DetailsWebviewView implements vscode.WebviewViewProvider {
    * Handle messages from the webview
    */
   private async handleMessage(message: any): Promise<void> {
-    switch (message.command) {
-      case 'goToCode':
-        if (this.currentFunction) {
-          const doc = await vscode.workspace.openTextDocument(this.currentFunction.file);
+    try {
+      switch (message.command) {
+        case 'goToCode':
+          if (this.currentFunction) {
+            const doc = await vscode.workspace.openTextDocument(this.currentFunction.file);
+            const editor = await vscode.window.showTextDocument(doc);
+            const pos = new vscode.Position(this.currentFunction.location.startLine - 1, 0);
+            editor.selection = new vscode.Selection(pos, pos);
+            editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+          }
+          break;
+
+        case 'fixWithAI':
+          if (this.currentFunction) {
+            console.log('[CodePulse] Fix with AI clicked for:', this.currentFunction.name);
+            await vscode.commands.executeCommand('codepulse.fixWithAI', this.currentFunction);
+          } else {
+            console.error('[CodePulse] Fix with AI clicked but no currentFunction');
+            vscode.window.showWarningMessage('No function selected. Please select a function first.');
+          }
+          break;
+
+        case 'ignoreIssues':
+          if (this.currentFunction) {
+            await vscode.commands.executeCommand('codepulse.ignoreIssue', this.currentFunction);
+          }
+          break;
+
+        case 'goToFunction':
+          const { file, line } = message.data;
+          const doc = await vscode.workspace.openTextDocument(file);
           const editor = await vscode.window.showTextDocument(doc);
-          const pos = new vscode.Position(this.currentFunction.location.startLine - 1, 0);
+          const pos = new vscode.Position(line - 1, 0);
           editor.selection = new vscode.Selection(pos, pos);
           editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-        }
-        break;
-
-      case 'fixWithAI':
-        if (this.currentFunction) {
-          await vscode.commands.executeCommand('codepulse.fixWithAI', this.currentFunction);
-        }
-        break;
-
-      case 'ignoreIssues':
-        if (this.currentFunction) {
-          await vscode.commands.executeCommand('codepulse.ignoreIssue', this.currentFunction);
-        }
-        break;
-
-      case 'goToFunction':
-        const { file, line } = message.data;
-        const doc = await vscode.workspace.openTextDocument(file);
-        const editor = await vscode.window.showTextDocument(doc);
-        const pos = new vscode.Position(line - 1, 0);
-        editor.selection = new vscode.Selection(pos, pos);
-        editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-        break;
+          break;
+      }
+    } catch (error) {
+      console.error('[CodePulse] Error handling message:', error);
+      vscode.window.showErrorMessage(`CodePulse: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -671,61 +680,64 @@ export function registerDetailsWebviewView(
   // Fix with AI command
   context.subscriptions.push(
     vscode.commands.registerCommand('codepulse.fixWithAI', async (fn: FunctionInfo) => {
-      // Build context for AI
-      const impact = stateManager.getImpact(fn.id);
-      const issueText = fn.issues.map(i => `- ${i.category}: ${i.message}`).join('\n');
+      try {
+        console.log('[CodePulse] Executing fixWithAI command for:', fn.name);
 
-      // Calculate risk level
-      const total = impact?.totalAffected || 0;
-      let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
-      if (total > 25) riskLevel = 'CRITICAL';
-      else if (total > 10) riskLevel = 'HIGH';
-      else if (total > 3) riskLevel = 'MEDIUM';
+        // Build context for AI
+        const impact = stateManager.getImpact(fn.id);
+        const issueText = fn.issues.map(i => `- ${i.category}: ${i.message}`).join('\n');
 
-      // Build list of affected functions
-      let affectedFunctionsList = '';
-      if (impact && impact.totalAffected > 0) {
-        affectedFunctionsList += '\n**⚠️ AFFECTED FUNCTIONS - MUST NOT BE BROKEN:**\n\n';
+        // Calculate risk level
+        const total = impact?.totalAffected || 0;
+        let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
+        if (total > 25) riskLevel = 'CRITICAL';
+        else if (total > 10) riskLevel = 'HIGH';
+        else if (total > 3) riskLevel = 'MEDIUM';
 
-        if (impact.directImpact.length > 0) {
-          affectedFunctionsList += '**Direct Callers (will break immediately if this function changes):**\n';
-          impact.directImpact.slice(0, 10).forEach((impacted) => {
-            const file = impacted.node.file.split(/[\\\\/]/).pop() || impacted.node.file;
-            affectedFunctionsList += `- \`${impacted.node.name}\` in ${file}:${impacted.node.line}\n`;
-          });
-          if (impact.directImpact.length > 10) {
-            affectedFunctionsList += `- ... and ${impact.directImpact.length - 10} more\n`;
+        // Build list of affected functions
+        let affectedFunctionsList = '';
+        if (impact && impact.totalAffected > 0) {
+          affectedFunctionsList += '\n**⚠️ AFFECTED FUNCTIONS - MUST NOT BE BROKEN:**\n\n';
+
+          if (impact.directImpact.length > 0) {
+            affectedFunctionsList += '**Direct Callers (will break immediately if this function changes):**\n';
+            impact.directImpact.slice(0, 10).forEach((impacted) => {
+              const file = impacted.node.file.split(/[\\\\/]/).pop() || impacted.node.file;
+              affectedFunctionsList += `- \`${impacted.node.name}\` in ${file}:${impacted.node.line}\n`;
+            });
+            if (impact.directImpact.length > 10) {
+              affectedFunctionsList += `- ... and ${impact.directImpact.length - 10} more\n`;
+            }
+            affectedFunctionsList += '\n';
           }
-          affectedFunctionsList += '\n';
+
+          if (impact.indirectImpact.length > 0) {
+            affectedFunctionsList += '**Indirect Impact (affected through call chain):**\n';
+            impact.indirectImpact.slice(0, 10).forEach((impacted) => {
+              const file = impacted.node.file.split(/[\\\\/]/).pop() || impacted.node.file;
+              affectedFunctionsList += `- \`${impacted.node.name}\` in ${file}:${impacted.node.line}\n`;
+            });
+            if (impact.indirectImpact.length > 10) {
+              affectedFunctionsList += `- ... and ${impact.indirectImpact.length - 10} more\n`;
+            }
+            affectedFunctionsList += '\n';
+          }
+
+          // List affected files
+          if (impact.affectedFiles.length > 0) {
+            affectedFunctionsList += '**Files that will need review after changes:**\n';
+            impact.affectedFiles.slice(0, 15).forEach((file) => {
+              const fileName = file.split(/[\\\\/]/).pop() || file;
+              affectedFunctionsList += `- ${fileName}\n`;
+            });
+            if (impact.affectedFiles.length > 15) {
+              affectedFunctionsList += `- ... and ${impact.affectedFiles.length - 15} more files\n`;
+            }
+          }
         }
 
-        if (impact.indirectImpact.length > 0) {
-          affectedFunctionsList += '**Indirect Impact (affected through call chain):**\n';
-          impact.indirectImpact.slice(0, 10).forEach((impacted) => {
-            const file = impacted.node.file.split(/[\\\\/]/).pop() || impacted.node.file;
-            affectedFunctionsList += `- \`${impacted.node.name}\` in ${file}:${impacted.node.line}\n`;
-          });
-          if (impact.indirectImpact.length > 10) {
-            affectedFunctionsList += `- ... and ${impact.indirectImpact.length - 10} more\n`;
-          }
-          affectedFunctionsList += '\n';
-        }
-
-        // List affected files
-        if (impact.affectedFiles.length > 0) {
-          affectedFunctionsList += '**Files that will need review after changes:**\n';
-          impact.affectedFiles.slice(0, 15).forEach((file) => {
-            const fileName = file.split(/[\\\\/]/).pop() || file;
-            affectedFunctionsList += `- ${fileName}\n`;
-          });
-          if (impact.affectedFiles.length > 15) {
-            affectedFunctionsList += `- ... and ${impact.affectedFiles.length - 15} more files\n`;
-          }
-        }
-      }
-
-      // Create a detailed prompt for the AI
-      const prompt = `I need help fixing issues in my code:
+        // Create a detailed prompt for the AI
+        const prompt = `I need help fixing issues in my code:
 
 **File:** ${fn.file}
 **Function:** ${fn.name} (line ${fn.location.startLine})
@@ -749,19 +761,28 @@ ${affectedFunctionsList}
 
 Please help me fix these issues while being mindful of the dependencies.`;
 
-      // Copy to clipboard and show message
-      await vscode.env.clipboard.writeText(prompt);
-      const result = await vscode.window.showInformationMessage(
-        'AI context copied to clipboard! Paste it into your AI assistant (Claude, Copilot, etc.)',
-        'Open File'
-      );
+        console.log('[CodePulse] Copying prompt to clipboard, length:', prompt.length);
 
-      if (result === 'Open File') {
-        const doc = await vscode.workspace.openTextDocument(fn.file);
-        const editor = await vscode.window.showTextDocument(doc);
-        const pos = new vscode.Position(fn.location.startLine - 1, 0);
-        editor.selection = new vscode.Selection(pos, pos);
-        editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+        // Copy to clipboard and show message
+        await vscode.env.clipboard.writeText(prompt);
+
+        console.log('[CodePulse] Successfully copied to clipboard');
+
+        const result = await vscode.window.showInformationMessage(
+          'AI context copied to clipboard! Paste it into your AI assistant (Claude, Copilot, etc.)',
+          'Open File'
+        );
+
+        if (result === 'Open File') {
+          const doc = await vscode.workspace.openTextDocument(fn.file);
+          const editor = await vscode.window.showTextDocument(doc);
+          const pos = new vscode.Position(fn.location.startLine - 1, 0);
+          editor.selection = new vscode.Selection(pos, pos);
+          editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+        }
+      } catch (error) {
+        console.error('[CodePulse] Error in fixWithAI command:', error);
+        vscode.window.showErrorMessage(`Failed to copy AI context: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     })
   );
