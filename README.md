@@ -267,7 +267,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ```bash
 # Clone the repository
-git clone https://github.com/DiabloWHB/codepulse-AI.git
+git clone https://github.com/DiabloWHB/codepulse.git
 cd codepulse
 
 # Install dependencies
