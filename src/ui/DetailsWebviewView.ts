@@ -546,14 +546,14 @@ export class DetailsWebviewView implements vscode.WebviewViewProvider {
     </div>
   </div>
 
-  <button class="btn btn-primary" onclick="goToCode()">
+  <button class="btn btn-primary" id="goToCodeBtn">
     📍 Go to Source Code
   </button>
   ${fn.issues.length > 0 ? `
-    <button class="btn btn-ai" onclick="fixWithAI()">
+    <button class="btn btn-ai" id="fixWithAIBtn">
       🤖 Fix with AI Assistant
     </button>
-    <button class="btn btn-secondary" onclick="ignoreIssues()">
+    <button class="btn btn-secondary" id="ignoreIssuesBtn">
       🙈 Ignore Issues
     </button>
   ` : ''}
@@ -561,31 +561,55 @@ export class DetailsWebviewView implements vscode.WebviewViewProvider {
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
 
-    function goToCode() {
+    // Attach event listeners instead of inline handlers (CSP-safe)
+    document.getElementById('goToCodeBtn')?.addEventListener('click', () => {
       vscode.postMessage({ command: 'goToCode' });
-    }
+    });
 
-    function fixWithAI() {
+    document.getElementById('fixWithAIBtn')?.addEventListener('click', () => {
       vscode.postMessage({ command: 'fixWithAI' });
-    }
+    });
 
-    function ignoreIssues() {
+    document.getElementById('ignoreIssuesBtn')?.addEventListener('click', () => {
       vscode.postMessage({ command: 'ignoreIssues' });
-    }
+    });
 
-    function goToFunction(data) {
-      vscode.postMessage({ command: 'goToFunction', data });
-    }
+    // Event delegation for dynamically generated elements
+    document.addEventListener('click', (e) => {
+      const target = e.target.closest('.section-title, .issue-item, .function-item');
+      if (!target) return;
 
-    function goToIssue(data) {
-      vscode.postMessage({ command: 'goToFunction', data });
-    }
+      // Toggle section
+      if (target.classList.contains('section-title')) {
+        target.classList.toggle('collapsed');
+        const content = target.nextElementSibling;
+        if (content) content.classList.toggle('collapsed');
+        return;
+      }
 
-    function toggleSection(element) {
-      element.classList.toggle('collapsed');
-      const content = element.nextElementSibling;
-      content.classList.toggle('collapsed');
-    }
+      // Go to issue/function
+      if (target.classList.contains('issue-item') || target.classList.contains('function-item')) {
+        const file = target.getAttribute('data-file') || target.querySelector('[data-file]')?.getAttribute('data-file');
+        const line = target.getAttribute('data-line') || target.querySelector('[data-line]')?.getAttribute('data-line');
+
+        // Extract from onclick attribute as fallback
+        if (!file && target.hasAttribute('onclick')) {
+          const onclick = target.getAttribute('onclick');
+          const match = onclick.match(/\{[^}]+\}/);
+          if (match) {
+            try {
+              const data = JSON.parse(match[0]);
+              vscode.postMessage({ command: 'goToFunction', data });
+              return;
+            } catch (e) {}
+          }
+        }
+
+        if (file && line) {
+          vscode.postMessage({ command: 'goToFunction', data: { file, line: parseInt(line) } });
+        }
+      }
+    });
   </script>
 </body>
 </html>`;

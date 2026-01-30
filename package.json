@@ -2,7 +2,7 @@
   "name": "codepulse-ai",
   "displayName": "CodePulse AI",
   "description": "Real-time code health monitoring with dependency tracking for AI-assisted development",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "DiabloWHB",
   "engines": {
     "vscode": "^1.85.0"
