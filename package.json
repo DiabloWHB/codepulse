@@ -30,6 +30,9 @@
   },
   "homepage": "https://github.com/DiabloWHB/codepulse#readme",
   "main": "./dist/extension.js",
+  "bin": {
+    "codepulse-mcp": "./dist/mcp/index.js"
+  },
   "activationEvents": [
     "workspaceContains:**/*.ts",
     "workspaceContains:**/*.tsx",
@@ -72,6 +75,31 @@
         "command": "codepulse.showProjectReport",
         "title": "CodePulse: Show Project Report",
         "icon": "$(file-text)"
+      },
+      {
+        "command": "codepulse.searchSymbol",
+        "title": "CodePulse: Search Symbol",
+        "icon": "$(search)"
+      },
+      {
+        "command": "codepulse.rebuildIndex",
+        "title": "CodePulse: Rebuild Symbol Index",
+        "icon": "$(database)"
+      },
+      {
+        "command": "codepulse.showIndexStats",
+        "title": "CodePulse: Show Index Statistics",
+        "icon": "$(graph-line)"
+      },
+      {
+        "command": "codepulse.getSymbolContext",
+        "title": "CodePulse: Get Symbol Context (AI)",
+        "icon": "$(lightbulb)"
+      },
+      {
+        "command": "codepulse.getAIContext",
+        "title": "CodePulse: Get AI Context (Internal)",
+        "icon": "$(robot)"
       }
     ],
     "viewsContainers": {
@@ -170,13 +198,47 @@
           "command": "codepulse.showDependencies",
           "when": "view == codepulse.impactView",
           "group": "navigation@3"
+        },
+        {
+          "command": "codepulse.searchSymbol",
+          "when": "view == codepulse.quickAccessView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codepulse.showIndexStats",
+          "when": "view == codepulse.quickAccessView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "codepulse.rebuildIndex",
+          "when": "view == codepulse.quickAccessView",
+          "group": "navigation@3"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "codepulse.getSymbolContext",
+          "when": "editorTextFocus && resourceLangId =~ /typescript|javascript/",
+          "group": "codepulse@1"
+        },
+        {
+          "command": "codepulse.searchSymbol",
+          "when": "editorTextFocus",
+          "group": "codepulse@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "codepulse.getAIContext",
+          "when": "false"
         }
       ]
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run build",
+    "vscode:prepublish": "npm run build && npm run build:mcp",
     "build": "node esbuild.js --production",
+    "build:mcp": "tsc -p tsconfig.mcp.json",
     "watch": "node esbuild.js --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -189,6 +251,7 @@
     "publish": "vsce publish"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "dotenv": "16.3.1",
     "glob": "10.3.10",
     "minimatch": "9.0.3",

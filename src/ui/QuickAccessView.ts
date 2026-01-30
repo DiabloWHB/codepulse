@@ -38,6 +38,33 @@ export class QuickAccessProvider implements vscode.TreeDataProvider<QuickAccessI
     const summary = this.stateManager.getSummary();
 
     return [
+      // === Symbol Index Actions ===
+      {
+        type: 'command',
+        id: 'searchSymbol',
+        label: 'Search Symbol',
+        icon: 'search',
+        description: 'Find functions, classes, variables',
+        command: 'codepulse.searchSymbol'
+      },
+      {
+        type: 'command',
+        id: 'getSymbolContext',
+        label: 'Get Symbol Context',
+        icon: 'lightbulb',
+        description: 'AI context for current symbol',
+        command: 'codepulse.getSymbolContext'
+      },
+      {
+        type: 'command',
+        id: 'showIndexStats',
+        label: 'Index Statistics',
+        icon: 'graph-line',
+        description: 'View symbol index stats',
+        command: 'codepulse.showIndexStats'
+      },
+
+      // === Analysis Actions ===
       {
         type: 'command',
         id: 'analyzeFile',
@@ -62,6 +89,8 @@ export class QuickAccessProvider implements vscode.TreeDataProvider<QuickAccessI
         description: `Health: ${summary.totalFunctions > 0 ? Math.round((summary.healthyCount / summary.totalFunctions) * 100) : '?'}%`,
         command: 'codepulse.showProjectReport'
       },
+
+      // === Navigation Actions ===
       {
         type: 'command',
         id: 'showDashboard',
@@ -86,10 +115,20 @@ export class QuickAccessProvider implements vscode.TreeDataProvider<QuickAccessI
         description: 'View function calls',
         command: 'codepulse.showDependencies'
       },
+
+      // === Utility Actions ===
+      {
+        type: 'command',
+        id: 'rebuildIndex',
+        label: 'Rebuild Index',
+        icon: 'database',
+        description: 'Rebuild symbol index',
+        command: 'codepulse.rebuildIndex'
+      },
       {
         type: 'command',
         id: 'refresh',
-        label: 'Refresh',
+        label: 'Refresh Analysis',
         icon: 'refresh',
         description: 'Re-analyze everything',
         command: 'codepulse.refresh'

@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "codepulse": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./dist/mcp/index.js"],
+      "env": {
+        "WORKSPACE_PATH": "${workspaceFolder}",
+        "INDEX_CACHE_PATH": "${workspaceFolder}/.codepulse/index.cache.json"
+      },
+      "metadata": {
+        "name": "CodePulse Symbol Index",
+        "description": "Provides fast, token-efficient access to the CodePulse symbol index. Use this instead of Grep/Read for finding code!",
+        "autoStart": true
+      }
+    }
+  }
+}

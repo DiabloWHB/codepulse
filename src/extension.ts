@@ -13,10 +13,15 @@ import { registerTreeView } from './ui/TreeViewProvider';
 import { registerQuickAccessView } from './ui/QuickAccessView';
 import { registerDetailsWebviewView } from './ui/DetailsWebviewView';
 import { registerImpactCodeLens } from './ui/ImpactCodeLensProvider';
+import { SymbolIndexManager } from './index/SymbolIndexManager';
+import { AIContextProvider } from './index/AIContextProvider';
+import { IndexWatcher } from './index/IndexWatcher';
 import { Logger } from './utils/logger';
 import { debounce } from './utils/debounce';
 import { isSupportedFile } from './utils/paths';
 import { FileAnalysisResult } from './types';
+import * as path from 'path';
+import * as fs from 'fs';
 
 let stateManager: StateManager;
 let configManager: ConfigManager;
@@ -25,7 +30,173 @@ let analysisEngine: AnalysisEngine;
 let decorationManager: DecorationManager;
 let diagnosticManager: DiagnosticManager;
 let statusBarManager: StatusBarManager;
+let symbolIndexManager: SymbolIndexManager;
+let aiContextProvider: AIContextProvider;
+let indexWatcher: IndexWatcher;
 let logger: Logger;
+
+/**
+ * Setup MCP server configuration automatically in the workspace.
+ * Creates .mcp.json that registers the CodePulse MCP server.
+ */
+async function setupMCPConfig(
+  context: vscode.ExtensionContext,
+  workspaceRoot: string
+): Promise<void> {
+  try {
+    const mcpConfigPath = path.join(workspaceRoot, '.mcp.json');
+
+    // Check if .mcp.json already exists
+    const mcpExists = await fs.promises
+      .access(mcpConfigPath)
+      .then(() => true)
+      .catch(() => false);
+
+    // Path to the MCP server executable (in extension dist folder)
+    const mcpServerPath = path.join(context.extensionPath, 'dist', 'mcp', 'index.js');
+
+    // CodePulse MCP server configuration
+    const codepulseServer = {
+      type: 'stdio',
+      command: 'node',
+      args: [mcpServerPath],
+      env: {
+        WORKSPACE_PATH: workspaceRoot,
+        INDEX_CACHE_PATH: path.join(workspaceRoot, '.codepulse', 'index.cache.json')
+      },
+      metadata: {
+        name: 'CodePulse Symbol Index',
+        description: 'Provides fast, token-efficient access to the CodePulse symbol index. Use this instead of Grep/Read for finding code!',
+        autoStart: true
+      }
+    };
+
+    let mcpConfig: any;
+
+    if (mcpExists) {
+      // Read existing config and update/add CodePulse to it
+      try {
+        mcpConfig = JSON.parse(await fs.promises.readFile(mcpConfigPath, 'utf-8'));
+
+        // Add or update CodePulse server
+        if (!mcpConfig.mcpServers) {
+          mcpConfig.mcpServers = {};
+        }
+
+        const isUpdate = !!mcpConfig.mcpServers.codepulse;
+        mcpConfig.mcpServers.codepulse = codepulseServer;
+
+        logger?.info(isUpdate ? 'Updating CodePulse in MCP config' : 'Adding CodePulse to existing MCP config', {
+          existingServers: Object.keys(mcpConfig.mcpServers).filter(k => k !== 'codepulse')
+        });
+      } catch (error) {
+        logger?.warn('Failed to parse existing .mcp.json, creating new config', { error: String(error) });
+        // If parsing failed, create fresh config
+        mcpConfig = {
+          mcpServers: {
+            codepulse: codepulseServer
+          }
+        };
+      }
+    } else {
+      // Create new config
+      mcpConfig = {
+        mcpServers: {
+          codepulse: codepulseServer
+        }
+      };
+    }
+
+    // Write .mcp.json
+    await fs.promises.writeFile(
+      mcpConfigPath,
+      JSON.stringify(mcpConfig, null, 2),
+      'utf-8'
+    );
+
+    logger?.info('MCP configuration created', { location: mcpConfigPath });
+
+    // Show notification
+    vscode.window.showInformationMessage(
+      '🚀 CodePulse: MCP server configured! Restart Claude Code to use fast index queries.',
+      'Learn More'
+    ).then((selection) => {
+      if (selection === 'Learn More') {
+        vscode.env.openExternal(
+          vscode.Uri.parse('https://github.com/DiabloWHB/codepulse#mcp-integration')
+        );
+      }
+    });
+  } catch (error) {
+    logger?.error('Failed to setup MCP config', { error: String(error) });
+    // Don't throw - MCP setup failure shouldn't prevent extension activation
+  }
+}
+
+/**
+ * Setup Claude Code skills automatically in the workspace.
+ * Copies skill templates from extension to .claude/skills/ directory.
+ */
+async function setupClaudeSkills(
+  context: vscode.ExtensionContext,
+  workspaceRoot: string
+): Promise<void> {
+  try {
+    const skillsDir = path.join(workspaceRoot, '.claude', 'skills', 'codepulse-index');
+    const templatesDir = path.join(context.extensionPath, 'src', 'skills', 'templates');
+
+    // Check if skills already exist
+    const skillExists = await fs.promises
+      .access(path.join(skillsDir, 'SKILL.md'))
+      .then(() => true)
+      .catch(() => false);
+
+    if (skillExists) {
+      logger?.debug('Claude skills already exist, skipping setup');
+      return;
+    }
+
+    // Create skills directory
+    await fs.promises.mkdir(skillsDir, { recursive: true });
+
+    // Copy SKILL.md
+    const skillFile = path.join(templatesDir, 'SKILL.md');
+    const skillDest = path.join(skillsDir, 'SKILL.md');
+    await fs.promises.copyFile(skillFile, skillDest);
+
+    // Copy examples directory
+    const examplesDir = path.join(templatesDir, 'examples');
+    const examplesDest = path.join(skillsDir, 'examples');
+    await fs.promises.mkdir(examplesDest, { recursive: true });
+
+    // Copy example files
+    const exampleFiles = ['good.md', 'bad.md'];
+    for (const file of exampleFiles) {
+      const src = path.join(examplesDir, file);
+      const dest = path.join(examplesDest, file);
+      await fs.promises.copyFile(src, dest);
+    }
+
+    logger?.info('Claude skills setup completed', {
+      location: skillsDir
+    });
+
+    // Show notification
+    vscode.window.showInformationMessage(
+      '💡 CodePulse: Claude Code skills configured for this workspace',
+      'Learn More'
+    ).then((selection) => {
+      if (selection === 'Learn More') {
+        vscode.env.openExternal(
+          vscode.Uri.parse('https://github.com/DiabloWHB/codepulse#claude-code-integration')
+        );
+      }
+    });
+  } catch (error) {
+    logger?.error('Failed to setup Claude skills', { error: String(error) });
+    // Don't throw - skill setup failure shouldn't prevent extension activation
+  }
+}
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   Logger.initialize('info');
@@ -38,6 +209,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       logger.warn('No workspace folder found');
       return;
     }
+
+    // Setup Claude Code skills automatically
+    await setupClaudeSkills(context, workspaceRoot);
+
+    // Setup MCP configuration automatically
+    await setupMCPConfig(context, workspaceRoot);
 
     // Initialize core
     stateManager = new StateManager();
@@ -53,6 +230,53 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Initialize Production Readiness Analyzer
     const productionReadinessAnalyzer = new ProductionReadinessAnalyzer();
     analysisEngine.registerAnalyzer(productionReadinessAnalyzer);
+
+    // Initialize Symbol Index System
+    symbolIndexManager = new SymbolIndexManager();
+    aiContextProvider = new AIContextProvider(symbolIndexManager);
+    indexWatcher = new IndexWatcher(symbolIndexManager);
+
+    logger.info('Initializing symbol index...');
+
+    // Build index in background with progress
+    vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'CodePulse: Building Symbol Index',
+        cancellable: false
+      },
+      async (progress) => {
+        symbolIndexManager.onProgress((indexProgress) => {
+          progress.report({
+            increment: (1 / indexProgress.total) * 100,
+            message: `${indexProgress.current}/${indexProgress.total} files (${indexProgress.percentage}%)`
+          });
+        });
+
+        await symbolIndexManager.buildIndex(workspaceRoot);
+
+        // Export cache for MCP server
+        const cachePath = path.join(workspaceRoot, '.codepulse', 'index.cache.json');
+        await symbolIndexManager.exportCache(cachePath);
+
+        const stats = symbolIndexManager.getStats();
+        logger.info('Symbol index built', {
+          totalSymbols: stats.totalSymbols,
+          totalFiles: stats.totalFiles
+        });
+
+        vscode.window.showInformationMessage(
+          `CodePulse: Indexed ${stats.totalSymbols} symbols in ${stats.totalFiles} files`
+        );
+      }
+    );
+
+    // Start watching for file changes
+    const cachePath = path.join(workspaceRoot, '.codepulse', 'index.cache.json');
+    indexWatcher.start(context, cachePath);
+
+    // Register AI context command (MANDATORY for AI usage)
+    aiContextProvider.registerAICommand(context);
 
     // Initialize UI
     decorationManager = new DecorationManager(stateManager);
@@ -275,6 +499,159 @@ function registerCommands(context: vscode.ExtensionContext, workspaceRoot: strin
       vscode.window.showInformationMessage(
         `Project Report: ${reportData.summary.healthPercentage}% healthy, ${reportData.summary.errorCount} errors, ${reportData.summary.warningCount} warnings`
       );
+    }),
+
+    // ===== SYMBOL INDEX COMMANDS =====
+
+    vscode.commands.registerCommand('codepulse.searchSymbol', async () => {
+      const query = await vscode.window.showInputBox({
+        prompt: 'Search for a symbol (function, class, variable, etc.)',
+        placeHolder: 'e.g., sendReport, ClientPage, handleSubmit'
+      });
+
+      if (!query) return;
+
+      const results = symbolIndexManager.search({
+        terms: query.split(/\s+/),
+        fuzzyThreshold: 0.5,
+        limit: 20
+      });
+
+      if (results.length === 0) {
+        vscode.window.showInformationMessage(`No symbols found for: ${query}`);
+        return;
+      }
+
+      const items = results.map((result) => ({
+        label: `$(symbol-${result.symbol.kind}) ${result.symbol.name}`,
+        description: `${result.symbol.kind} · ${result.symbol.scope}`,
+        detail: `${result.symbol.file}:${result.symbol.location.startLine} (Score: ${Math.round(result.score * 100)}%)`,
+        symbol: result.symbol
+      }));
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: `Found ${results.length} symbols`,
+        matchOnDescription: true,
+        matchOnDetail: true
+      });
+
+      if (selected) {
+        const doc = await vscode.workspace.openTextDocument(selected.symbol.file);
+        const editor = await vscode.window.showTextDocument(doc);
+        const pos = new vscode.Position(selected.symbol.location.startLine, 0);
+        editor.selection = new vscode.Selection(pos, pos);
+        editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+      }
+    }),
+
+    vscode.commands.registerCommand('codepulse.rebuildIndex', async () => {
+      const answer = await vscode.window.showWarningMessage(
+        'Rebuild the entire symbol index? This may take a few moments.',
+        'Yes', 'No'
+      );
+
+      if (answer !== 'Yes') return;
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'CodePulse: Rebuilding Symbol Index',
+          cancellable: false
+        },
+        async (progress) => {
+          symbolIndexManager.onProgress((indexProgress) => {
+            progress.report({
+              increment: (1 / indexProgress.total) * 100,
+              message: `${indexProgress.current}/${indexProgress.total} files`
+            });
+          });
+
+          await symbolIndexManager.buildIndex(workspaceRoot);
+
+          // Export cache for MCP server
+          const cachePath = path.join(workspaceRoot, '.codepulse', 'index.cache.json');
+          await symbolIndexManager.exportCache(cachePath);
+
+          const stats = symbolIndexManager.getStats();
+          vscode.window.showInformationMessage(
+            `Index rebuilt: ${stats.totalSymbols} symbols in ${stats.totalFiles} files`
+          );
+        }
+      );
+    }),
+
+    vscode.commands.registerCommand('codepulse.showIndexStats', () => {
+      const stats = symbolIndexManager.getStats();
+      const aiStats = aiContextProvider.getStats();
+      const watcherStats = indexWatcher.getStats();
+
+      const message = [
+        '# Symbol Index Statistics',
+        '',
+        `**Total Symbols:** ${stats.totalSymbols}`,
+        `**Total Files:** ${stats.totalFiles}`,
+        `**Exported:** ${stats.exportedCount}`,
+        `**Local:** ${stats.localCount}`,
+        '',
+        '## By Kind',
+        ...Object.entries(stats.byKind).map(([kind, count]) => `- ${kind}: ${count}`),
+        '',
+        '## AI Context Provider',
+        `**Total Queries:** ${aiStats.totalQueries}`,
+        `**Cache Hits:** ${aiStats.cacheHits} (${Math.round(aiStats.cacheHitRate * 100)}%)`,
+        '',
+        '## Index Watcher',
+        `**Queue Size:** ${watcherStats.queueSize}`,
+        `**Processing:** ${watcherStats.isProcessing ? 'Yes' : 'No'}`
+      ].join('\n');
+
+      vscode.window.showInformationMessage('Symbol Index Stats', 'View Details').then((action) => {
+        if (action === 'View Details') {
+          vscode.workspace.openTextDocument({
+            content: message,
+            language: 'markdown'
+          }).then((doc) => {
+            vscode.window.showTextDocument(doc, { preview: true });
+          });
+        }
+      });
+    }),
+
+    vscode.commands.registerCommand('codepulse.getSymbolContext', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage('No active editor');
+        return;
+      }
+
+      const position = editor.selection.active;
+      const symbols = symbolIndexManager.getSymbolsInFile(editor.document.uri.fsPath);
+
+      // Find symbol at cursor position
+      const symbolAtCursor = symbols.find(
+        (s) =>
+          s.location.startLine <= position.line &&
+          s.location.endLine >= position.line
+      );
+
+      if (!symbolAtCursor) {
+        vscode.window.showInformationMessage('No symbol found at cursor');
+        return;
+      }
+
+      const context = await aiContextProvider.getContextForSymbol(symbolAtCursor.id);
+      const formatted = aiContextProvider.formatContextForAI(context);
+
+      // Show in new document
+      const doc = await vscode.workspace.openTextDocument({
+        content: formatted,
+        language: 'markdown'
+      });
+
+      await vscode.window.showTextDocument(doc, {
+        viewColumn: vscode.ViewColumn.Beside,
+        preview: true
+      });
     })
   );
 }
@@ -407,13 +784,27 @@ async function analyzeWorkspace(workspaceRoot: string): Promise<void> {
   vscode.window.showInformationMessage(`Analyzed ${files.length} files`);
 }
 
+/**
+ * Setup MCP server configuration automatically in the workspace.
+ * Creates .mcp.json that registers the CodePulse MCP server.
+ */
 export function deactivate(): void {
   logger?.info('CodePulse deactivating');
+
+  // Clean up index system
+  indexWatcher?.stop();
+  symbolIndexManager?.clear();
+  aiContextProvider?.clearCache();
+
+  // Clean up UI
   decorationManager?.dispose();
   diagnosticManager?.dispose();
   statusBarManager?.dispose();
+
+  // Clean up core
   configManager?.dispose();
   stateManager?.clear();
   cacheManager?.clear();
+
   Logger.dispose();
 }

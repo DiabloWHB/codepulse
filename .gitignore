@@ -36,4 +36,10 @@ Thumbs.db
 
 # Private/Development
 instructions/
-.claude/
+
+# Claude Code (keep skills, ignore plans/logs)
+.claude/plans/
+.claude/logs/
+
+# CodePulse cache (generated locally)
+.codepulse/
