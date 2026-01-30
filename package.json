@@ -3,7 +3,7 @@
   "displayName": "CodePulse",
   "description": "Real-time code health monitoring with dependency tracking for AI-assisted development",
   "version": "0.1.0",
-  "publisher": "codepulse",
+  "publisher": "DiabloWHB",
   "engines": {
     "vscode": "^1.85.0"
   },
