@@ -2,23 +2,26 @@
 
 **AI-Aware Code Health Monitoring** - Real-time dependency tracking designed specifically for AI-assisted development.
 
-> 🤖 **Built for AI Developers**: CodePulse shows AI assistants (like Claude, Copilot) which functions will break *before* making changes, preventing cascade failures in large codebases.
+> 🤖 **Built for AI Developers**: CodePulse shows AI assistants (like Claude, Copilot) which functions will break _before_ making changes, preventing cascade failures in large codebases.
 
 ## Features
 
 ### 🎯 AI-Aware Impact Analysis
+
 - **CodeLens Warnings**: Impact alerts appear directly above functions - visible to both you AND your AI assistant
 - **AI Alert Messages**: Special markdown reports designed for AI consumption
 - **Smart Path Resolution**: Shows full relative paths (e.g., `src/app/suppliers/[id]/page.tsx`) - perfect for Next.js projects
 - **Copy-to-Clipboard**: One-click to copy impact analysis for pasting to AI
 
 ### 📊 Dependency Graph & Impact Analysis
+
 - **Import-Aware Resolution**: Advanced algorithm that uses import statements to accurately resolve function calls (no more false negatives!)
 - **Track Function Dependencies**: Automatically builds a graph of which functions call which
 - **Impact Analysis**: "If I change this function, what breaks?" - see all affected code instantly
 - **Risk Assessment**: Functions are rated by impact level (low/medium/high/critical)
 
 ### 💚 Real-Time Health Monitoring
+
 - **Inline Decorations**: Health status icons (🟢🟡🔴) appear next to functions
 - **Rich Hover Messages**: Detailed issue descriptions with AI-friendly formatting
   - Shows direct callers with full file paths
@@ -30,11 +33,13 @@
 - **Details Panel**: Click any function to see full impact analysis with visual risk indicators
 
 ### Supabase Integration
+
 - **Schema Validation**: Validates queries against your local Supabase types
 - **Table/Column Checking**: Warns about non-existent tables or columns
 - **Migration Support**: Reads schema from `supabase/types.ts` or migration files
 
 ### 🔍 Advanced Code Analysis
+
 - **Tree-Sitter Parser**: Fast, accurate syntax analysis for TypeScript/JavaScript
 - **No File Size Limits**: Handles files of any size (no 32KB limitation)
 - **Function Extraction**: Detects functions, methods, arrow functions, React components
@@ -88,23 +93,24 @@ Now your AI knows: "I can't just change this function's signature - I need to up
 4. Click Install
 
 Or install from VSIX:
+
 ```bash
-code --install-extension codepulse-0.1.0.vsix
+code --install-extension codepulse-ai-0.1.0.vsix
 ```
 
 ## Usage
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `CodePulse: Analyze Current File` | Analyze the active file |
-| `CodePulse: Analyze Workspace` | Analyze all files in workspace (shows progress) |
-| `CodePulse: Show Dashboard` | View overall health metrics and statistics |
-| `CodePulse: Show Impact Analysis` | Show impact for current file's functions |
-| `CodePulse: Show Dependencies` | Browse function call relationships |
-| `CodePulse: Show Project Report` | Generate comprehensive project health report |
-| `CodePulse: Refresh` | Clear cache and re-analyze all open files |
+| Command                           | Description                                     |
+| --------------------------------- | ----------------------------------------------- |
+| `CodePulse: Analyze Current File` | Analyze the active file                         |
+| `CodePulse: Analyze Workspace`    | Analyze all files in workspace (shows progress) |
+| `CodePulse: Show Dashboard`       | View overall health metrics and statistics      |
+| `CodePulse: Show Impact Analysis` | Show impact for current file's functions        |
+| `CodePulse: Show Dependencies`    | Browse function call relationships              |
+| `CodePulse: Show Project Report`  | Generate comprehensive project health report    |
+| `CodePulse: Refresh`              | Clear cache and re-analyze all open files       |
 
 ### UI Components
 
@@ -117,13 +123,13 @@ code --install-extension codepulse-0.1.0.vsix
 
 ### Settings
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `codepulse.enabled` | `true` | Enable/disable CodePulse |
-| `codepulse.debounceDelay` | `300` | Debounce delay for file changes (ms) |
-| `codepulse.supabase.enabled` | `true` | Enable Supabase integration |
-| `codepulse.graph.enabled` | `true` | Enable dependency graph building |
-| `codepulse.graph.maxDepth` | `5` | Maximum depth for impact analysis |
+| Setting                      | Default | Description                          |
+| ---------------------------- | ------- | ------------------------------------ |
+| `codepulse.enabled`          | `true`  | Enable/disable CodePulse             |
+| `codepulse.debounceDelay`    | `300`   | Debounce delay for file changes (ms) |
+| `codepulse.supabase.enabled` | `true`  | Enable Supabase integration          |
+| `codepulse.graph.enabled`    | `true`  | Enable dependency graph building     |
+| `codepulse.graph.maxDepth`   | `5`     | Maximum depth for impact analysis    |
 
 ## How It Works
 
@@ -162,6 +168,7 @@ Functions are categorized by the number of other functions that depend on them:
 - 🔴 **Critical Risk**: 25+ affected functions - high-impact change, needs careful planning
 
 Each level shows:
+
 - **Direct callers**: Functions that call this one immediately
 - **Indirect impact**: Functions affected through the call chain (with depth)
 - **Full file paths**: No ambiguity about which file (crucial for monorepos/Next.js)
@@ -260,7 +267,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/codepulse.git
+git clone https://github.com/DiabloWHB/codepulse-AI.git
 cd codepulse
 
 # Install dependencies
