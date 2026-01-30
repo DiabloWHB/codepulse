@@ -21,6 +21,14 @@
     "supabase",
     "typescript"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DiabloWHB/codepulse.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DiabloWHB/codepulse/issues"
+  },
+  "homepage": "https://github.com/DiabloWHB/codepulse#readme",
   "main": "./dist/extension.js",
   "activationEvents": [
     "workspaceContains:**/*.ts",
