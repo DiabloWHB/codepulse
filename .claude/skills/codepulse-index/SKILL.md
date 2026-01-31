@@ -1,118 +1,151 @@
 ---
 name: codepulse-index
-description: Use CodePulse symbol index for efficient code navigation (saves 90%+ tokens)
+description: MUST BE USED - Mandatory CodePulse MCP tools for code navigation (saves 90%+ tokens, prevents breaking changes)
 user-invocable: false
-allowed-tools: Read, Grep, Glob, Bash(npm *)
+proactive: true
+priority: critical
 ---
 
-# CodePulse Symbol Index - Token-Saving Policy
+# CodePulse Symbol Index - MANDATORY Usage Policy
 
-## 🎯 Purpose
-This workspace uses **CodePulse Symbol Index** - an intelligent code navigation system that reduces token usage by **90-97%**.
+## 🚨 CRITICAL RULE
+**ALWAYS use CodePulse MCP tools BEFORE Read/Grep/Glob for ANY code search!**
 
-**Critical:** Before searching for code, query the index first to get precise locations.
+This workspace has **CodePulse MCP server** with impact analysis and symbol indexing.
 
-## 📋 Policy (Please Follow)
+## 📋 MANDATORY: Use These Tools First
 
-### Before using Read, Grep, or Glob:
-**ALWAYS query the index first** using:
-```javascript
-await vscode.commands.executeCommand('codepulse.getAIContext', '<your search query>')
-```
+### For ANY code search, use ONE of these (in priority order):
+
+1. **`codepulse_search`** - Search for functions/classes/symbols
+   - Use INSTEAD of Grep for finding code
+   - Returns precise locations instantly
+
+2. **`codepulse_get_impact`** - Check function impact BEFORE modifying
+   - Shows callers, risk level, affected files
+   - CRITICAL: Use before ANY code modification!
+
+3. **`codepulse_get_symbols_in_file`** - Get file overview
+   - Use INSTEAD of Read for understanding file structure
+
+4. **`codepulse_get_file_risks`** - See risky functions in file
+   - Use when working with critical files
 
 ### Why This Matters
-- **Without index:** Grep 50 files + Read all → **10,000+ tokens**
-- **With index:** Query index + Read targeted lines → **400 tokens**
+- **Without MCP:** Grep 50 files + Read all → **10,000+ tokens**
+- **With MCP:** codepulse_search + Read targeted lines → **400 tokens**
 - **Savings:** 96% reduction = **massive cost & speed improvement**
+- **Impact data:** Know callers/risks BEFORE making changes!
 
 ## ✅ Correct Workflow
 
 ```
-User Query
+User asks about code
     ↓
-1. Call: vscode.commands.executeCommand('codepulse.getAIContext', 'your query')
+1. Use: codepulse_search with natural language query
     ↓
-2. Receive: Precise locations + code snippets
+2. Get: Precise symbol locations instantly
     {
-      primary: [{name: "sendPDF", file: "page.tsx", line: 978}],
-      related: [...],
-      codeSnippets: [...]
+      name: "sendPDF",
+      file: "page.tsx:978-1006",
+      score: 100%
     }
     ↓
-3. Read: Only the specific files/lines returned
+3. BEFORE modifying: codepulse_get_impact('sendPDF')
     ↓
-4. Process: Use the targeted code
+4. See: "🔴 206 callers | Critical Risk - affects 45 files!"
+    ↓
+5. Read: Only specific lines if needed
 ```
 
 ## 📚 Examples
 
-### ✅ Good Example: Finding a Function
+### ✅ CORRECT: Using MCP Tools
 ```
 User: "Where is the sendPDF function?"
 
-Step 1: Query index
-→ vscode.commands.executeCommand('codepulse.getAIContext', 'sendPDF function')
+Step 1: codepulse_search
+→ codepulse_search("sendPDF function")
 
-Step 2: Receive precise location
-← Returns: page.tsx:978-1006, TicketQuickActions.tsx:109-146
+Step 2: Get instant results
+← "sendPDF (function) - File: page.tsx:978, Score: 100%"
 
-Step 3: Read only those lines
-→ Read page.tsx lines 970-1010 (40 lines)
-→ Read TicketQuickActions.tsx lines 105-150 (45 lines)
+Step 3: Check impact BEFORE modifying
+→ codepulse_get_impact("sendPDF")
+← "🔴 42 callers | High Risk - 12 files affected"
 
-📊 Result: ~400 tokens
+Step 4: Read specific lines
+→ Read page.tsx:970-1010 (40 lines)
+
+📊 Result: ~400 tokens + impact awareness!
 ```
 
-### ❌ Bad Example: Blind Search
+### ❌ WRONG: Using Grep/Read
 ```
 User: "Where is the sendPDF function?"
 
-Step 1: Grep for pattern
+Step 1: Grep (WRONG!)
 → Grep "sendPDF"
 
-Step 2: Get many matches
-← 50 files match
+Step 2: Many matches
+← 50 files
 
-Step 3: Read all files
-→ Read 50 files (thousands of lines)
+Step 3: Read everything
+→ Read 50 files
 
 📊 Result: ~15,000 tokens
-❌ Wasted: 14,600 tokens (97% waste!)
+❌ Wasted: 14,600 tokens
+❌ No impact data - might break code!
 ```
 
 See `examples/good.md` for more correct approaches.
 See `examples/bad.md` for wasteful patterns to avoid.
 
-## 🎓 When to Use Index
+## 🎓 When to Use MCP Tools
 
-**Use index for** (these save massive tokens):
-- ✅ Finding functions, classes, components
+**ALWAYS use MCP for** (saves massive tokens + gives impact data):
+- ✅ Finding ANY function, class, component
 - ✅ Understanding code structure
-- ✅ Locating specific features ("send email", "PDF generation")
-- ✅ Tracing dependencies
-- ✅ Any symbol-based search
+- ✅ Locating features ("send email", "PDF generation")
+- ✅ **BEFORE modifying code** (check impact!)
+- ✅ Understanding file risks
+- ✅ Any code search/navigation task
 
-**Skip index for** (these are pattern-based):
-- ❌ Searching for text patterns (not symbols)
-- ❌ Finding TODO/FIXME comments
-- ❌ Searching in markdown/docs
-- ❌ User explicitly asks to "grep all files"
+**Only skip MCP for**:
+- ❌ Text pattern searches (not code symbols)
+- ❌ TODO/FIXME comments
+- ❌ Markdown/docs
+- ❌ User explicitly asks "grep all files"
 
-## 🔍 How to Query the Index
+## 🔍 MCP Tools Reference
 
-Use **natural language** - the index is smart:
+### codepulse_search
+```
+Use for: Finding functions/classes/symbols
+Query: Natural language - "send PDF function", "email handler", etc.
+Returns: Precise locations with scores
+```
 
-```javascript
-// Good queries:
-- "send PDF function"
-- "client email handler"
-- "React components for tickets"
-- "database integration code"
-- "API route for billing"
+### codepulse_get_impact (CRITICAL!)
+```
+Use BEFORE: Modifying any function
+Query: Function name or ID
+Returns: Callers count, risk level, affected files
+Example: "🔴 206 callers | Critical - 45 files"
+```
 
-// Avoid grep-style patterns:
-- NOT: "send.*PDF.*email"
-- NOT: "handle[A-Z]+"
+### codepulse_get_symbols_in_file
+```
+Use for: Understanding file structure
+Query: File path
+Returns: All functions/classes/exports
+```
+
+### codepulse_get_file_risks
+```
+Use for: Finding risky functions in file
+Query: File path + min risk level
+Returns: High-risk functions sorted by impact
 ```
 
 ## 📊 Report Your Savings

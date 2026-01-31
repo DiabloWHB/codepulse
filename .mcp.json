@@ -3,10 +3,12 @@
     "codepulse": {
       "type": "stdio",
       "command": "node",
-      "args": ["./dist/mcp/index.js"],
+      "args": [
+        "c:\\Users\\mor19\\.vscode\\extensions\\diablowhb.codepulse-ai-0.2.0\\dist\\mcp\\index.js"
+      ],
       "env": {
-        "WORKSPACE_PATH": "${workspaceFolder}",
-        "INDEX_CACHE_PATH": "${workspaceFolder}/.codepulse/index.cache.json"
+        "WORKSPACE_PATH": "f:\\APPS\\CodePulse",
+        "INDEX_CACHE_PATH": "f:\\APPS\\CodePulse\\.codepulse\\index.cache.json"
       },
       "metadata": {
         "name": "CodePulse Symbol Index",

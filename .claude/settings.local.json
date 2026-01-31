@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "codepulse": {
+      "disabled": false,
+      "alwaysAllow": [
+        "codepulse_search",
+        "codepulse_get_impact",
+        "codepulse_get_symbols_in_file",
+        "codepulse_get_file_risks",
+        "codepulse_get_context",
+        "codepulse_stats"
+      ]
+    }
+  },
+  "permissions": {
+    "allow": [
+      "codepulse_search",
+      "codepulse_get_impact",
+      "codepulse_get_symbols_in_file",
+      "codepulse_get_file_risks",
+      "codepulse_get_context",
+      "codepulse_stats"
+    ]
+  }
+}

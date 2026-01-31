@@ -16,6 +16,7 @@ import { QueryEngine } from './QueryEngine';
 import { Logger } from '../utils/logger';
 import { computeHash } from '../utils/hash';
 import { isSupportedFile } from '../utils/paths';
+import { StateManager } from '../core/StateManager';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -646,13 +647,88 @@ export class SymbolIndexManager {
   }
 
   /**
-   * Export index to cache file for MCP server.
+   * Build impact data from symbol index by analyzing function calls.
+   * This creates a simple call graph without needing the full StateManager.
    */
-  public async exportCache(cachePath: string): Promise<void> {
+  private buildImpactDataFromIndex(): Record<string, any> {
+    const impactData: Record<string, any> = {};
+    const callerMap = new Map<string, Set<string>>(); // symbolId -> set of caller IDs
+
+    // First pass: build caller map by analyzing all function symbols
+    for (const [symbolId, symbol] of this.index.symbols) {
+      // Skip non-function symbols
+      if (symbol.kind !== 'function' && symbol.kind !== 'method') {
+        continue;
+      }
+
+      // Look for references to this symbol in other files
+      const symbolName = symbol.name;
+
+      // Find all symbols that might call this one (simple name matching)
+      for (const [otherSymbolId, otherSymbol] of this.index.symbols) {
+        if (otherSymbolId === symbolId) continue;
+
+        // Check if the other symbol's file might reference this symbol
+        // This is a simplified approach - we could make it more sophisticated
+        if (otherSymbol.signature && otherSymbol.signature.includes(symbolName)) {
+          if (!callerMap.has(symbolId)) {
+            callerMap.set(symbolId, new Set());
+          }
+          callerMap.get(symbolId)!.add(otherSymbolId);
+        }
+      }
+    }
+
+    // Second pass: build impact data from caller map
+    for (const [symbolId, callers] of callerMap.entries()) {
+      if (callers.size === 0) continue;
+
+      const callerCount = callers.size;
+      const riskLevel =
+        callerCount > 25 ? 'critical' :
+        callerCount > 10 ? 'high' :
+        callerCount > 3 ? 'medium' : 'low';
+
+      // Get caller details
+      const callerSymbols = Array.from(callers)
+        .slice(0, 20)
+        .map(callerId => this.index.symbols.get(callerId))
+        .filter((s): s is SymbolInfo => s !== undefined);
+
+      const affectedFiles = new Set(callerSymbols.map(s => s.file));
+
+      impactData[symbolId] = {
+        callers: callerCount,
+        riskLevel,
+        directCallersCount: callerCount,
+        indirectCallersCount: 0, // Simplified: no indirect analysis
+        affectedFiles: Array.from(affectedFiles),
+        directCallers: callerSymbols.map(s => ({
+          name: s.name,
+          file: s.file,
+          line: s.location.startLine
+        }))
+      };
+    }
+
+    return impactData;
+  }
+
+  /**
+   * Export index to cache file for MCP server.
+   * @param cachePath Path to cache file
+   * @param stateManager Optional StateManager to include impact analysis data (unused - kept for compatibility)
+   */
+  public async exportCache(cachePath: string, _stateManager?: StateManager): Promise<void> {
     try {
       // Ensure directory exists
       const cacheDir = path.dirname(cachePath);
       await fs.promises.mkdir(cacheDir, { recursive: true });
+
+      // Build simple call graph from symbol index
+      this.logger.info('Building impact data from symbol index...');
+      const impactData = this.buildImpactDataFromIndex();
+      this.logger.info(`Impact data built for ${Object.keys(impactData).length} symbols with callers`);
 
       // Convert Maps to arrays for JSON serialization
       const cache = {
@@ -662,7 +738,9 @@ export class SymbolIndexManager {
         kindIndex: Array.from(this.index.kindIndex.entries()),
         containerIndex: Array.from(this.index.containerIndex.entries()),
         stats: this.index.stats,
-        builtAt: this.index.builtAt
+        builtAt: this.index.builtAt,
+        // 🆕 NEW: Impact analysis data for AI
+        impactData: Object.keys(impactData).length > 0 ? impactData : undefined
       };
 
       // Write to file
@@ -671,6 +749,7 @@ export class SymbolIndexManager {
       this.logger.info(`Index cached to ${cachePath}`, {
         symbols: this.index.stats.totalSymbols,
         files: this.index.stats.totalFiles,
+        impactSymbols: Object.keys(impactData).length,
         size: `${Math.round((await fs.promises.stat(cachePath)).size / 1024)}KB`
       });
     } catch (error) {

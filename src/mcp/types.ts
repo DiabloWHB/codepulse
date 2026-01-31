@@ -15,6 +15,24 @@ export interface CachedIndex {
   containerIndex: Array<[string, string[]]>;
   stats: IndexStats;
   builtAt: number;
+  // 🆕 Impact analysis data for each symbol
+  impactData?: Record<string, ImpactData>;
+}
+
+/**
+ * Impact analysis data for a symbol.
+ */
+export interface ImpactData {
+  callers: number;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  directCallersCount: number;
+  indirectCallersCount: number;
+  affectedFiles: string[];
+  directCallers: Array<{
+    name: string;
+    file: string;
+    line: number;
+  }>;
 }
 
 /**

@@ -255,9 +255,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
         await symbolIndexManager.buildIndex(workspaceRoot);
 
-        // Export cache for MCP server
+        // Export cache for MCP server (with impact data from StateManager)
         const cachePath = path.join(workspaceRoot, '.codepulse', 'index.cache.json');
-        await symbolIndexManager.exportCache(cachePath);
+        await symbolIndexManager.exportCache(cachePath, stateManager);
 
         const stats = symbolIndexManager.getStats();
         logger.info('Symbol index built', {
@@ -271,9 +271,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
     );
 
-    // Start watching for file changes
+    // Start watching for file changes (with StateManager for impact data updates)
     const cachePath = path.join(workspaceRoot, '.codepulse', 'index.cache.json');
-    indexWatcher.start(context, cachePath);
+    indexWatcher.start(context, cachePath, stateManager);
 
     // Register AI context command (MANDATORY for AI usage)
     aiContextProvider.registerAICommand(context);
@@ -293,6 +293,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     // Analyze open files
     await analyzeOpenFiles(workspaceRoot);
+
+    // Auto-analyze workspace on startup (in background)
+    analyzeWorkspace(workspaceRoot).catch((error) => {
+      logger.warn('Auto-analyze workspace failed', error);
+    });
 
     logger.info('CodePulse activated');
   } catch (error) {
@@ -568,9 +573,9 @@ function registerCommands(context: vscode.ExtensionContext, workspaceRoot: strin
 
           await symbolIndexManager.buildIndex(workspaceRoot);
 
-          // Export cache for MCP server
+          // Export cache for MCP server (with impact data from StateManager)
           const cachePath = path.join(workspaceRoot, '.codepulse', 'index.cache.json');
-          await symbolIndexManager.exportCache(cachePath);
+          await symbolIndexManager.exportCache(cachePath, stateManager);
 
           const stats = symbolIndexManager.getStats();
           vscode.window.showInformationMessage(

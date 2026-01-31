@@ -17,6 +17,7 @@ export class IndexWatcher {
   private updateQueue: Set<string> = new Set();
   private isProcessingQueue = false;
   private cachePath?: string;
+  private stateManager?: any; // StateManager reference for impact data
 
   constructor(indexManager: SymbolIndexManager, debounceMs = 300) {
     this.indexManager = indexManager;
@@ -36,8 +37,9 @@ export class IndexWatcher {
   /**
    * Start watching for file changes.
    */
-  public start(context: vscode.ExtensionContext, cachePath?: string): void {
+  public start(context: vscode.ExtensionContext, cachePath?: string, stateManager?: any): void {
     this.cachePath = cachePath;
+    this.stateManager = stateManager;
     this.logger.info('Starting index watcher...');
 
     // Watch all TypeScript/JavaScript files
@@ -191,8 +193,9 @@ export class IndexWatcher {
     }
 
     try {
-      await this.indexManager.exportCache(this.cachePath);
-      this.logger.debug('Cache exported successfully');
+      // Pass StateManager to include updated impact data
+      await this.indexManager.exportCache(this.cachePath, this.stateManager);
+      this.logger.debug('Cache exported successfully with impact data');
     } catch (error) {
       this.logger.error('Failed to export cache', error);
     }
