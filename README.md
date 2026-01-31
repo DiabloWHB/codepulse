@@ -8,7 +8,7 @@
 
 > 🤖 **Built for AI Developers**: CodePulse shows AI assistants (like Claude, Copilot) which functions will break _before_ making changes, preventing cascade failures in large codebases.
 
-> ⚡ **Claude Code Integration**: 90-97% token savings with built-in MCP server and symbol indexing. Claude Code can find any function in 1-5ms instead of scanning thousands of files.
+> ⚡ **Claude Code Integration**: 90-97% token savings with built-in MCP server and symbol indexing. Claude Code can find any function in 1-5ms instead of scanning thousands of files. **NEW: Real-time impact analysis** shows Claude which functions will break before making changes!
 
 ## Features
 
@@ -123,7 +123,12 @@ When you use Claude Code with CodePulse installed:
    - Signatures and documentation
    - Export/import relationships
 
-3. **Token-Efficient Search**: Claude Code queries the index instead of scanning files:
+3. **Automatic Analysis**: CodePulse automatically:
+   - Builds dependency graph on workspace startup
+   - Updates impact data when files change
+   - Keeps the index synchronized in real-time
+
+4. **Token-Efficient Search**: Claude Code queries the index instead of scanning files:
 
    **Without Index (traditional):**
    ```
@@ -148,7 +153,35 @@ Claude Code gets access to these tools automatically:
 - `codepulse_search` - Search symbols with natural language
 - `codepulse_get_context` - Get AI-optimized context for understanding code
 - `codepulse_get_symbols_in_file` - List all symbols in a specific file
+- `codepulse_get_impact` - **NEW!** Get impact analysis (callers, risk level) for any function
+- `codepulse_get_file_risks` - **NEW!** List all high-risk functions in a file
 - `codepulse_stats` - Show index statistics
+
+### Impact Analysis for AI (NEW!)
+
+CodePulse now provides **real-time impact analysis** to Claude Code:
+
+- **Before Changes**: Claude Code can query `codepulse_get_impact` to see:
+  - How many functions call this one (e.g., "123 callers")
+  - Risk level (Low/Medium/High/Critical)
+  - Affected files and locations
+  - Direct callers with line numbers
+
+- **Automatic Updates**: Impact data refreshes automatically when you:
+  - Save a file
+  - Change code structure
+  - Add/remove function calls
+
+- **Prevents Breaking Changes**: Claude Code sees warnings like:
+  ```
+  ⚠️ Function 'handleSubmit' has 42 callers (High Risk)
+  Affected files:
+  - src/components/Form.tsx:156
+  - src/pages/checkout.tsx:89
+  - ... and 40 more
+  ```
+
+This prevents AI from making changes that would break dozens of files!
 
 ### Setup for Claude Code Users
 
@@ -203,7 +236,7 @@ Real-world comparisons:
 Or install from VSIX:
 
 ```bash
-code --install-extension codepulse-ai-0.1.0.vsix
+code --install-extension codepulse-ai-0.2.1.vsix
 ```
 
 ## Usage
@@ -417,11 +450,15 @@ npm run watch
 
 ## Roadmap
 
-### ✅ Completed (v0.2.0)
+### ✅ Completed (v0.2.1)
 - [x] **Symbol Index System**: Fast semantic search
 - [x] **MCP Server Integration**: Claude Code support
 - [x] **Custom Skills**: Auto-configuration for AI assistants
 - [x] **Token Optimization**: 90-97% savings on code navigation
+- [x] **Impact Analysis MCP Tools**: Real-time caller tracking for AI
+- [x] **Auto-Analyze Workspace**: Automatic dependency graph on startup
+- [x] **Auto-Update Index**: Real-time updates on file changes
+- [x] **Automatic MCP Usage**: Claude Code uses MCP tools by default
 
 ### 🔜 Coming Soon
 - [ ] **Index Optimization**: Exported-only symbols option for huge projects

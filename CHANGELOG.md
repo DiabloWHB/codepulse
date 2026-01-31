@@ -2,6 +2,60 @@
 
 All notable changes to CodePulse will be documented in this file.
 
+## [0.2.1] - 2026-01-31
+
+### Added
+
+- **Impact Analysis MCP Tools** - Real-time caller tracking for Claude Code
+  - `codepulse_get_impact` - Get impact analysis (callers count, risk level) for any function
+  - `codepulse_get_file_risks` - List all high-risk functions in a file
+  - Shows "123 callers | Critical Risk" before Claude Code makes changes
+  - Prevents AI from unknowingly breaking dependencies
+
+- **Auto-Analyze Workspace** - Automatic dependency graph building
+  - Runs automatically on workspace startup (in background)
+  - Builds complete function call graph
+  - Generates impact data for all functions
+  - No manual triggering required
+
+- **Auto-Update Impact Data** - Real-time synchronization
+  - Impact data updates automatically when files change
+  - IndexWatcher now receives StateManager reference
+  - Cache exports include latest impact analysis
+  - Keeps MCP data fresh and accurate
+
+- **Automatic MCP Tool Usage** - Claude Code integration enhancements
+  - Added `<default_to_action>` block in CONTEXT.md
+  - Updated SKILL.md with "MUST BE USED" directive
+  - Created settings.local.json for auto-permissions
+  - Claude Code now uses MCP tools automatically
+
+### Changed
+
+- **SymbolIndexManager** - Added `buildImpactDataFromIndex()` method
+  - Builds impact data directly from symbol index
+  - Uses signature matching to find callers
+  - Calculates risk levels (low/medium/high/critical)
+  - Independent of StateManager for initial build
+
+- **IndexWatcher** - Enhanced to update impact data
+  - Now accepts StateManager parameter
+  - Passes StateManager to exportCache on updates
+  - Impact data refreshes on every file change
+  - Real-time synchronization with code changes
+
+- **Extension Activation** - Added auto-analyze workspace
+  - Calls `analyzeWorkspace()` automatically on startup
+  - Runs in background without blocking UI
+  - Ensures dependency graph is ready immediately
+
+### Fixed
+
+- **MCP Cache Updates** - Impact data now updates on file changes
+  - Previously only built on initial index creation
+  - Now regenerates on every cache export
+  - Keeps Claude Code data synchronized
+
 ## [0.3.0] - 2026-01-30
 
 ### Added
